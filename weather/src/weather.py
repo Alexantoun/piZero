@@ -6,6 +6,11 @@ import json
 from pathlib import Path
 
 
+class WeatherAPIError(Exception):
+    """Raised when Open Meteo requests fail or return invalid data."""
+    pass
+
+
 url = "https://api.open-meteo.com/v1/forecast"
 ISO_FORMAT_STRING = "%Y-%m-%d"
 DAILY_FORECAST_PARAMS = {
@@ -27,7 +32,7 @@ HOURLY_FORECAST_PARAMS = {
 class open_meteo_interface():
     def __init__(self):
         self._daily_forecast = {}
-        raw = requests.get(url, params={**DAILY_FORECAST_PARAMS, "format": "json"}).json()
+        raw = self._fetch_json({**DAILY_FORECAST_PARAMS, "format": "json"})
         self._daily_forecast["temperature_2m_mean"] = raw["daily"]["temperature_2m_mean"]
         self._daily_forecast["precipitation_sum"] = raw["daily"]["precipitation_sum"]
         self._daily_forecast["uv_index_max"] = raw["daily"]["uv_index_max"]
@@ -36,7 +41,7 @@ class open_meteo_interface():
         self._daily_forecast["weather_code"] = raw["daily"]["weather_code"]
         self._daily_forecast["apparent_temperature_max"] = raw["daily"]["apparent_temperature_max"]
 
-        raw = requests.get(url, params={**HOURLY_FORECAST_PARAMS, "format": "json"}).json()
+        raw = self._fetch_json({**HOURLY_FORECAST_PARAMS, "format": "json"})
         self._hourly_forecast = {}
         self._hourly_forecast["temperature_2m"] = raw["hourly"]["temperature_2m"]
         self._hourly_forecast["precipitation_probability"] = raw["hourly"]["precipitation_probability"]
@@ -44,6 +49,21 @@ class open_meteo_interface():
         self._hourly_forecast["weather_code"] = raw["hourly"]["weather_code"]
         self._hourly_forecast["apparent_temperature"] = raw["hourly"]["apparent_temperature"]
         self._hourly_forecast["time"] = raw["hourly"]["time"]
+
+    def _fetch_json(self, params):
+        try:
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            raw = response.json()
+        except requests.RequestException as exc:
+            raise WeatherAPIError("Open Meteo API request failed") from exc
+        except ValueError as exc:
+            raise WeatherAPIError("Open Meteo API returned invalid JSON") from exc
+
+        if not isinstance(raw, dict):
+            raise WeatherAPIError("Open Meteo API response was not a JSON object")
+
+        return raw
         
         
     @property

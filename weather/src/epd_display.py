@@ -18,7 +18,7 @@ class display:
         self.clear_display()
         
 
-    def display_todays_forecast(self, forecast: dict):
+    def display_todays_forecast(self, forecast: dict, connection_successful: bool):
         _image = Image.new('1', (self.epd.height, self.epd.width), 255)
         
         _weather_code_data = forecast["weather_code"][0]
@@ -51,10 +51,17 @@ class display:
         _text_vert_offset += 20
         _draw.text((_text_horiz_offset, _text_vert_offset), f"Sunset: {forecast['sunset'][0].split('T')[1][:5]}", font = font15, fill = 0)
 
+        #draw date under weather code icon
         _text_ver_offset = ICONS_SIZE + 15
         _text_horiz_offset = 10
         _today = time.strftime("%d/%m", time.localtime())
         _draw.text((_text_horiz_offset, _text_ver_offset), f"{_today}", font = font15, fill = 0)
+
+        if not connection_successful:
+            #draw failed connect under date
+            bmp = Image.open(icons_path / 'no_internet.bmp')
+            bmp = bmp.resize((30, 30))
+            _image.paste(bmp, (15, _text_ver_offset + 25))
 
         print('Displaying image on screen')
         print('\tTodays Date: ' + _today)
